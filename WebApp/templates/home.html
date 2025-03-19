@@ -1,10 +1,25 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Title</title>
-</head>
-<body>
+{% extends 'base.html' %}
 
-</body>
-</html>
+{% block title %}Home - My Django App{% endblock %}
+
+{% block content %}
+    <head>
+        {% load static %}
+        <link rel="stylesheet" href="{% static 'home_style.css' %}">
+    </head>
+
+    <h2>Project Summary</h2>
+    <p>
+        Our app helps users determine whether investing in wind turbines or solar panels is a net positive for their household energy consumption. By analyzing wind speed and sunshine data, the app calculates the potential energy generation from these renewable sources and compares it with the user's current energy consumption.
+    </p>
+    <p>
+        The app retrieves real-time meteorological data from either the Meteostat API or directly from the user. It then uses this data to perform calculations and provide personalized energy recommendations.
+    </p>
+
+    <div class="image-container">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/9/9e/Small_wind_turbine_on_roof.JPG" alt="Wind turbine on roof" class="smaller-image">
+        <p>
+            Image by [Andol] via <a href="https://commons.wikimedia.org/wiki/File:Small_wind_turbine_on_roof.JPG">Wikimedia</a>, used under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0 License</a>. No changes made.
+        </p>
+    </div>
+{% endblock %}

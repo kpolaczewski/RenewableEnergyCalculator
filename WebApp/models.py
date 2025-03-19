@@ -24,3 +24,5 @@ class Turbine(models.Model):
 
     def __str__(self):
         return f"{self.company_name} {self.name} ({self.nominal_power} MW)"
+
+    #def calculate_efficiency(self, wind_speed):
