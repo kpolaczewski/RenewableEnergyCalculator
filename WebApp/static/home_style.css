@@ -1,0 +1,16 @@
+.image-container{
+    text-align: center;
+    margin-top: 40px;
+    color: gray;
+    font-style: italic;
+    font-size: x-small;
+}
+
+.smaller-image{
+    width: 25%;
+    height: auto;
+}
+
+.image-container p a {
+    color: gray;
+}
