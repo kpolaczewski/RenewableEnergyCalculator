@@ -3,12 +3,44 @@ from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from rest_framework.exceptions import ValidationError
 
+from WebApp.models import Turbine
 
-class TurbineForm(forms.Form):
-    rotor_diameter = forms.FloatField(label="Rotor Diameter (m)", required=True)
-    efficiency = forms.FloatField(label="Efficiency (Cp)", required=True)
-    nominal_power = forms.FloatField(label="Nominal Power (W)", required=True)
-    startup_speed = forms.FloatField(label="Startup Speed (m/s)", required=True)
+
+class SelectTurbineForm(forms.Form):
+    turbine = forms.ModelChoiceField(
+        queryset=Turbine.objects.all(),
+        required=True,
+        label="Select a Turbine"
+    )
+
+class TurbineForm(forms.ModelForm):
+    class Meta:
+        model = Turbine
+        fields = ['name', 'company_name', 'rotor_diameter', 'efficiency', 'nominal_power', 'startup_speed']
+
+
+class WindDataForm(forms.Form):
+    source_choice = forms.ChoiceField(
+        choices=[('csv', 'Upload CSV'), ('meteostat', 'Use Meteostat')],
+        widget=forms.RadioSelect,
+        required=True
+    )
+    csv_file = forms.FileField(required=False)
+    location = forms.CharField(required=False)
+    start_date = forms.DateField(required=False)
+    end_date = forms.DateField(required=False)
+
+
+class EnergyConsumptionForm(forms.Form):
+    consumption_file = forms.FileField(label="Upload Home Energy Consumption CSV", required=True)
+
+class WindDataChoiceForm(forms.Form):
+    DATA_SOURCE_CHOICES = [
+        ('csv', 'Upload CSV File'),
+        ('api', 'Use Meteostat API'),
+    ]
+    data_source = forms.ChoiceField(choices=DATA_SOURCE_CHOICES, widget=forms.RadioSelect, required=True)
+    wind_data_file = forms.FileField(label="Upload Wind Data CSV", required=False)
 
 class LoginForm(AuthenticationForm):
     username = forms.CharField(

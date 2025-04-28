@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="turbine-selection-container">
+  <h1>Select or Create a Turbine</h1>
+
+  <div class="form-card">
+    <h2>Select Existing Turbine</h2>
+    <form method="post">
+      {% csrf_token %}
+      {{ select_form.as_p }}
+      <button type="submit" name="select_submit" class="btn-primary">Select and Continue</button>
+    </form>
+  </div>
+
+  <hr>
+
+  <div class="form-card">
+    <h2>Create a New Turbine</h2>
+    <form method="post">
+      {% csrf_token %}
+      {{ turbine_form.as_p }}
+      <button type="submit" name="create_submit" class="btn-primary">Create and Continue</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
