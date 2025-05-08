@@ -1,10 +1,28 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+{% extends 'base.html' %}
+{% block content %}
+<div class="energy-consumption-container">
+  <h1>Step 3: Household Energy Consumption</h1>
 
-</body>
-</html>
+  <!-- Average Consumption Option -->
+  <div class="form-card">
+    <h2>Choose an Average Consumption</h2>
+    <form method="post">
+      {% csrf_token %}
+      {{ avg_form.as_p }}
+      <button type="submit" name="average_submit" class="btn-primary">Submit Average</button>
+    </form>
+  </div>
+
+  <hr>
+
+  <!-- CSV Upload Option -->
+  <div class="form-card">
+    <h2>Upload Consumption CSV</h2>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ csv_form.as_p }}
+      <button type="submit" name="csv_submit" class="btn-primary">Upload CSV</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

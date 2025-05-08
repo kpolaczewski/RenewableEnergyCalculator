@@ -1,5 +1,6 @@
 import csv
 import logging
+import uuid
 from datetime import datetime, timedelta
 
 from django.contrib import messages
@@ -8,9 +9,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.views.decorators.csrf import csrf_exempt
 
-from WebApp.forms import RegisterForm, LoginForm, EnergyConsumptionForm, TurbineForm, WindDataChoiceForm, \
-    SelectTurbineForm, WindDataForm
-from WebApp.models import Turbine
+from WebApp.forms import RegisterForm, LoginForm, EnergyConsumptionForm, TurbineForm, \
+    SelectTurbineForm, WindDataForm, WindCSVForm, WindAPIForm, EnergyCSVForm, EnergyAverageForm
+from WebApp.models import Turbine, WindData
 from meteostat import Daily, Point, Stations
 
 from WebApp.utils import turbine_to_dict
@@ -129,24 +130,75 @@ def turbine_selection_view(request):
 
 def wind_data_view(request):
     if request.method == 'POST':
-        form = WindDataForm(request.POST, request.FILES)
-        if form.is_valid():
-            source = form.cleaned_data['source_choice']
-            if source == 'csv':
-                csv_file = request.FILES['csv_file']
-                # Process CSV here
-                request.session['wind_data'] = csv_file.read().decode('utf-8')
-            elif source == 'meteostat':
-                location = form.cleaned_data['location']
-                start_date = form.cleaned_data['start_date']
-                end_date = form.cleaned_data['end_date']
-                # Fetch data via meteostat
-                # Save it into session
-            return redirect('calculate_result_view')
-    else:
-        form = WindDataForm()
+        if 'csv_submit' in request.POST:
+            csv_form = WindCSVForm(request.POST, request.FILES)
+            api_form = WindAPIForm()
 
-    return render(request, 'wind_data.html', {'form': form})
+            if csv_form.is_valid():
+                wind_data_entry = WindData(id=uuid.uuid4(), source='csv')
+                csv_file = request.FILES['csv_file']
+                wind_data_entry.csv_data = csv_file.read().decode('utf-8')
+                wind_data_entry.save()
+                request.session['wind_data_id'] = str(wind_data_entry.id)
+                return redirect('energy_consumption_view')
+
+        elif 'meteostat_submit' in request.POST:
+            api_form = WindAPIForm(request.POST)
+            csv_form = WindCSVForm()
+
+            if api_form.is_valid():
+                wind_data_entry = WindData(
+                    id=uuid.uuid4(),
+                    source='meteostat',
+                    location=api_form.cleaned_data['location'],
+                    start_date=api_form.cleaned_data['start_date'],
+                    end_date=api_form.cleaned_data['end_date'],
+                    csv_data='placeholder for fetched data'
+                )
+                wind_data_entry.save()
+                request.session['wind_data_id'] = str(wind_data_entry.id)
+                return redirect('energy_consumption_view')
+    else:
+        csv_form = WindCSVForm()
+        api_form = WindAPIForm()
+
+    return render(request, 'wind_data.html', {
+        'csv_form': csv_form,
+        'api_form': api_form,
+    })
+
+
+def energy_consumption_view(request):
+    if request.method == 'POST':
+        if 'average_submit' in request.POST:
+            avg_form = EnergyAverageForm(request.POST)
+            csv_form = EnergyCSVForm()
+
+            if avg_form.is_valid():
+                consumption = avg_form.cleaned_data['average_consumption']
+                request.session['consumption_type'] = 'average'
+                request.session['average_consumption'] = consumption
+                return redirect('calculate_result_view')  # or next step
+
+        elif 'csv_submit' in request.POST:
+            csv_form = EnergyCSVForm(request.POST, request.FILES)
+            avg_form = EnergyAverageForm()
+
+            if csv_form.is_valid():
+                csv_data = csv_form.cleaned_data['csv_file'].read().decode('utf-8')
+                request.session['consumption_type'] = 'csv'
+                request.session['csv_consumption'] = csv_data
+                return redirect('calculate_result_view')  # or next step
+
+    else:
+        avg_form = EnergyAverageForm()
+        csv_form = EnergyCSVForm()
+
+    return render(request, 'energy_consumption.html', {
+        'avg_form': avg_form,
+        'csv_form': csv_form,
+    })
+
 
 def calculate_result_view(request):
     return render(request, 'result.html')

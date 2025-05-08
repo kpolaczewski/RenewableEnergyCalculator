@@ -1,5 +1,3 @@
-/* styles.css */
-
 /* Styling the container */
 .turbine-selection-container {
     width: 90%;
@@ -24,6 +22,7 @@ h1 {
     margin-bottom: 30px;
 }
 
+/* Form Card Headings */
 .form-card h2 {
     color: #34495e;
     margin-bottom: 15px;
@@ -63,7 +62,49 @@ hr {
     outline: none;
 }
 
-/* Responsive design for small screens */
+/* Ensure labels and inputs are stacked vertically */
+.form-field {
+    margin-bottom: 15px; /* Space between fields */
+}
+
+.form-card label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+/* Input fields styling */
+.form-card input[type="text"],
+.form-card input[type="date"] {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+/* Styling the "Use My Location" button */
+.form-card button[type="button"] {
+    width: 100%;
+    padding: 10px;
+    background-color: #2ecc71;
+    border-radius: 5px;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.form-card button[type="button"]:hover {
+    background-color: #27ae60;
+}
+
+.form-card button[type="button"]:active {
+    background-color: #1e8449;
+}
+
+/* Ensure the form inputs are responsive on smaller screens */
 @media screen and (max-width: 600px) {
     .turbine-selection-container {
         width: 100%;
@@ -78,26 +119,36 @@ hr {
         font-size: 18px;
     }
 }
+
+/* Global Styles */
 body {
-    font-family: Arial,
-    sans-serif; margin: 0; padding: 0;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
 }
+
+/* Navbar Styling */
 .navbar {
     background-color: #333;
     padding: 15px;
     text-align: center;
 }
+
 .navbar a {
     color: white;
     text-decoration: none;
     margin: 0 15px;
     font-size: 18px;
 }
+
+/* Container for main content */
 .container {
     width: 80%;
     margin: auto;
     padding: 20px;
 }
+
+/* Footer Styling */
 .footer {
     text-align: center;
     padding: 10px;
@@ -105,8 +156,10 @@ body {
     color: white;
     margin-top: 20px;
 }
-body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-.navbar { background-color: #333; padding: 15px; text-align: center; }
-.navbar a { color: white; text-decoration: none; margin: 0 15px; font-size: 18px; }
-.container { width: 80%; margin: auto; padding: 20px; }
-.footer { text-align: center; padding: 10px; background-color: #333; color: white; margin-top: 20px; }
+.info-text {
+  background-color: #f4f4f4;
+  padding: 10px;
+  border-left: 4px solid #007bff;
+  margin-top: 10px;
+  font-size: 0.9rem;
+}

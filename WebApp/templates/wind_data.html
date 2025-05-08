@@ -1,10 +1,117 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+{% extends 'base.html' %}
 
-</body>
-</html>
+{% block content %}
+<div class="turbine-selection-container">
+  <h1>Upload or Fetch Wind Data</h1>
+
+  <!-- CSV Upload Form -->
+  <div class="form-card">
+    <h2>Upload CSV File</h2>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ csv_form.as_p }}
+      <p class="info-text">
+        <strong>Note:</strong> Your CSV file should contain two columns: <code>date</code> and <code>wind_speed</code>.<br>
+        Example:
+        <pre>
+          2023-01-01, 5.2
+          2023-01-02, 4.8
+          2023-01-03, 6.1
+        </pre>
+        The date must be in <code>YYYY-MM-DD</code> format, and wind speed in m/s.
+      </p>
+
+      <button type="submit" name="csv_submit" class="btn-primary">Upload and Continue</button>
+    </form>
+  </div>
+
+  <hr>
+
+  <!-- Meteostat API Form with GPS -->
+  <div class="form-card">
+    <h2>Fetch from Meteostat API</h2>
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="form-field">
+        <label for="location">Location (auto-filled or optional)</label>
+        <input type="text" id="location" name="location" required>
+        {% if api_form.location.errors %}
+          <div class="error">{{ api_form.location.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-field">
+        <label for="latitude">Latitude</label>
+        <input type="text" id="latitude" name="latitude">
+        {% if api_form.latitude.errors %}
+          <div class="error">{{ api_form.latitude.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-field">
+        <label for="longitude">Longitude</label>
+        <input type="text" id="longitude" name="longitude">
+        {% if api_form.longitude.errors %}
+          <div class="error">{{ api_form.longitude.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-field">
+        <button type="button" onclick="getLocation()" class="btn-primary">Use My Location</button>
+      </div>
+
+      <div class="form-field">
+        {{ api_form.start_date.label_tag }} {{ api_form.start_date }}
+        {% if api_form.start_date.errors %}
+          <div class="error">{{ api_form.start_date.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-field">
+        {{ api_form.end_date.label_tag }} {{ api_form.end_date }}
+        {% if api_form.end_date.errors %}
+          <div class="error">{{ api_form.end_date.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-field">
+        <button type="submit" name="meteostat_submit" class="btn-primary">Fetch and Continue</button>
+      </div>
+    </form>
+  </div>
+
+
+<script>
+  function getLocation() {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async function(position) {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+
+        document.getElementById("latitude").value = lat;
+        document.getElementById("longitude").value = lon;
+
+        // Optional: get human-readable address
+        try {
+          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+          const data = await response.json();
+          document.getElementById("location").value = data.display_name;
+        } catch (err) {
+          document.getElementById("location").value = `Lat: ${lat}, Lon: ${lon}`;
+        }
+      },
+      function(error) {
+        alert("Unable to retrieve your location.");
+        console.error(error);
+      }
+    );
+  }
+</script>
+
+{% endblock %}
