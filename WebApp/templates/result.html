@@ -1,10 +1,44 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+{% extends "base.html" %}
 
-</body>
-</html>
+{% block content %}
+<h2 class="text-xl font-bold mb-4">Wind Energy Output</h2>
+
+{% if error %}
+  <p class="text-red-600">{{ error }}</p>
+{% else %}
+  <p class="mb-4">Turbine: <strong>{{ turbine.name }}</strong> ({{ turbine.company_name }})</p>
+  <p class="mb-4">Average Daily Output: <strong>{{ average_output|floatformat:2 }} W</strong></p>
+
+  <canvas id="powerChart" width="100%" height="40"></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const ctx = document.getElementById('powerChart').getContext('2d');
+    const chartData = {{ chart_data|safe }};
+    const powerChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: 'Daily Power Output (W)',
+                data: chartData.data,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                fill: true,
+                tension: 0.4,
+            }]
+        },
+        options: {
+            scales: {
+                x: {
+                    title: { display: true, text: 'Date' }
+                },
+                y: {
+                    title: { display: true, text: 'Power Output (W)' }
+                }
+            }
+        }
+    });
+  </script>
+{% endif %}
+{% endblock %}

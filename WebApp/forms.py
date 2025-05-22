@@ -15,10 +15,26 @@ class SelectTurbineForm(forms.Form):
         label="Select a Turbine"
     )
 
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if user is not None:
+            self.fields['turbine'].queryset = Turbine.objects.filter(user=user)
+
 class TurbineForm(forms.ModelForm):
     class Meta:
         model = Turbine
         fields = ['name', 'company_name', 'rotor_diameter', 'efficiency', 'nominal_power', 'startup_speed']
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+    def clean_name(self):
+        name = self.cleaned_data['name']
+        if Turbine.objects.filter(name=name, user=self.user).exists():
+            raise forms.ValidationError("You already have a turbine with this name.")
+        return name
 
 
 class WindDataForm(forms.Form):
@@ -95,8 +111,10 @@ class RegisterForm(UserCreationForm):
     def clean(self):
         cleaned_data = super().clean()
 
+        username = cleaned_data.get('username')
         email = cleaned_data.get('email')
-
+        if User.objects.filter(username=username).exists():
+            raise ValidationError("This username already exists")
         if User.objects.filter(email=email).exists():
             raise ValidationError("This email is already in use. Please choose another.")
 

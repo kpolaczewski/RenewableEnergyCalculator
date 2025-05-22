@@ -1,7 +1,10 @@
 import math
 from argparse import ArgumentError
+from django.db.models import CASCADE
+
 from django.db import models
 import logging
+from django.contrib.auth.models import User
 from rest_framework.exceptions import ValidationError
 from .utils import calculate_air_density
 import uuid
@@ -11,12 +14,17 @@ class Turbine(models.Model):
     """
     A Django model representing a wind turbine
     """
-    name = models.CharField(max_length=100, unique=True, db_index=True, help_text="The name of the turbine")
+    user = models.ForeignKey(User, on_delete=CASCADE, related_name='turbines')
+    name = models.CharField(max_length=100, db_index=True, help_text="The name of the turbine")
     company_name = models.CharField(max_length=50, help_text="The company name")
     rotor_diameter = models.FloatField(help_text="The rotor diameter in meters")
     efficiency = models.FloatField(help_text="Power coefficient (Cp), typically between 0.3 and 0.5")
     nominal_power = models.FloatField(help_text="Nominal power output in W (Watts)")
     startup_speed = models.FloatField(help_text="Minimum wind speed required for the turbine to start (m/s)")
+
+    constraints = [
+        models.UniqueConstraint(fields=['user', 'name'], name='unique_turbine_per_user')
+    ]
 
     def clean(self):
         """
@@ -90,7 +98,7 @@ class Turbine(models.Model):
 
             Returns:
             - list: A list of daily power outputs in Watts
-            """
+        """
 
         if not wind_speeds:
             raise ArgumentError(message ='No wind speed data provided')
@@ -114,11 +122,24 @@ class Turbine(models.Model):
 
 
 
-class WindData(models.Model):
+# class WindData(models.Model):
+#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     source = models.CharField(max_length=20, choices=[('csv', 'CSV'), ('meteostat', 'Meteostat')])
+#     csv_data = models.TextField(blank=True, null=True)
+#     location = models.CharField(max_length=100, blank=True, null=True)
+#     start_date = models.DateField(blank=True, null=True)
+#     end_date = models.DateField(blank=True, null=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+
+class WindDataCSV(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    source = models.CharField(max_length=20, choices=[('csv', 'CSV'), ('meteostat', 'Meteostat')])
     csv_data = models.TextField(blank=True, null=True)
-    location = models.CharField(max_length=100, blank=True, null=True)
+
+
+class WindDataAPI(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    location = models.CharField(max_length=100)
     start_date = models.DateField(blank=True, null=True)
     end_date = models.DateField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)

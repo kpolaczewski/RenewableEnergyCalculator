@@ -1,7 +1,8 @@
 import csv
+import json
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time, date
 
 from django.contrib import messages
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
@@ -11,7 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from WebApp.forms import RegisterForm, LoginForm, EnergyConsumptionForm, TurbineForm, \
     SelectTurbineForm, WindDataForm, WindCSVForm, WindAPIForm, EnergyCSVForm, EnergyAverageForm
-from WebApp.models import Turbine, WindData
+from WebApp.models import Turbine, WindDataCSV, WindDataAPI
 from meteostat import Daily, Point, Stations
 
 from WebApp.utils import turbine_to_dict
@@ -58,7 +59,7 @@ def dashboard_view(request):
     return render(request, 'dashboard.html')
 
 
-def get_wind_data_from_meteostat(lat, lon, start_date, end_date):
+def get_wind_avg_from_meteostat(lat, lon, start_date, end_date):
     if end_date - start_date > timedelta(days=365):
         raise ValueError("The date range must not exceed 1 year.")
 
@@ -74,8 +75,8 @@ def get_wind_data_from_meteostat(lat, lon, start_date, end_date):
     df = Daily(station_id, start=start_date, end=end_date)
     df = df.fetch()
 
-    wind_speed = df['wspd'].mean() if not df.empty else None
-    return wind_speed
+    wind_avg = df['wspd'].mean() if not df.empty else None
+    return wind_avg
 
 
 def process_csv(file):
@@ -93,8 +94,8 @@ def process_csv(file):
 
 def turbine_selection_view(request):
     if request.method == 'POST':
-        select_form = SelectTurbineForm(request.POST)
-        turbine_form = TurbineForm(request.POST)
+        select_form = SelectTurbineForm(request.POST, user=request.user)
+        turbine_form = TurbineForm(request.POST, user=request.user)
 
         if 'select_submit' in request.POST:
             if select_form.is_valid():
@@ -107,20 +108,19 @@ def turbine_selection_view(request):
 
         elif 'create_submit' in request.POST:
             if turbine_form.is_valid():
-                turbine_data = {
-                    "rotor_diameter": turbine_form.cleaned_data['rotor_diameter'],
-                    "efficiency": turbine_form.cleaned_data['efficiency'],
-                    "nominal_power": turbine_form.cleaned_data['nominal_power'],
-                    "startUp": turbine_form.cleaned_data['startup_speed'],
-                }
+                turbine = turbine_form.save(commit=False)
+                turbine.user = request.user
+                turbine.save()
+
+                turbine_data = turbine_to_dict(turbine)
                 request.session['turbine_data'] = turbine_data
                 return redirect('wind_data_view')
             else:
                 messages.error(request, "Please fill all fields correctly.")
 
     else:
-        select_form = SelectTurbineForm()
-        turbine_form = TurbineForm()
+        select_form = SelectTurbineForm(user=request.user)
+        turbine_form = TurbineForm(user=request.user)
 
     return render(request, 'turbine_selection.html', {
         'select_form': select_form,
@@ -135,7 +135,10 @@ def wind_data_view(request):
             api_form = WindAPIForm()
 
             if csv_form.is_valid():
-                wind_data_entry = WindData(id=uuid.uuid4(), source='csv')
+                wind_data_entry = WindDataCSV(
+                    id=uuid.uuid4(),
+                    source='csv'
+                )
                 csv_file = request.FILES['csv_file']
                 wind_data_entry.csv_data = csv_file.read().decode('utf-8')
                 wind_data_entry.save()
@@ -147,13 +150,13 @@ def wind_data_view(request):
             csv_form = WindCSVForm()
 
             if api_form.is_valid():
-                wind_data_entry = WindData(
+                wind_data_entry = WindDataAPI(
                     id=uuid.uuid4(),
-                    source='meteostat',
+                    latitude=api_form.cleaned_data['latitude'],
+                    longitude=api_form.cleaned_data['longitude'],
                     location=api_form.cleaned_data['location'],
                     start_date=api_form.cleaned_data['start_date'],
                     end_date=api_form.cleaned_data['end_date'],
-                    csv_data='placeholder for fetched data'
                 )
                 wind_data_entry.save()
                 request.session['wind_data_id'] = str(wind_data_entry.id)
@@ -201,5 +204,71 @@ def energy_consumption_view(request):
 
 
 def calculate_result_view(request):
-    return render(request, 'result.html')
+    turbine_data = request.session.get('turbine_data')
+    wind_data_id = request.session.get('wind_data_id')
+
+    turbine = Turbine(
+        name="custom",
+        company_name="custom",
+        rotor_diameter=turbine_data['rotor_diameter'],
+        efficiency=turbine_data['efficiency'],
+        nominal_power=turbine_data['nominal_power'],
+        startup_speed=turbine_data['startUp']
+
+    )
+
+    if not turbine_data or not wind_data_id:
+        return render(request, 'result.html', {'error': 'Missing turbine or wind data information.'})
+
+
+    wind_speeds = []
+    dates = []
+
+
+    # If data came from Meteostat
+    try:
+        wind_data_api = WindDataAPI.objects.get(id=wind_data_id)
+        location = Point(wind_data_api.latitude, wind_data_api.longitude)
+        if isinstance(wind_data_api.start_date, date):
+            wind_data_api.start_date = datetime.combine(wind_data_api.start_date, time.min)
+
+        if isinstance(wind_data_api.end_date, date):
+            wind_data_api.end_date = datetime.combine(wind_data_api.end_date, time.min)
+
+        df = Daily(location, wind_data_api.start_date, wind_data_api.end_date).fetch()
+
+        if df.empty or 'wspd' not in df:
+            raise ValueError("No wind speed data available.")
+
+        wind_speeds = df['wspd'].tolist()
+        dates = df.index.strftime('%Y-%m-%d').tolist()
+
+
+    # If data came from CSV
+    except WindDataAPI.DoesNotExist:
+        try:
+            wind_data_csv = WindDataCSV.objects.get(id=wind_data_id)
+            csv_lines = wind_data_csv.csv_data.strip().splitlines()
+
+            for line in csv_lines[1:]:  # Skip header
+                date_str, speed = line.strip().split(',')
+                dates.append(date_str)
+                wind_speeds.append(float(speed))
+        except Exception as e:
+            return render(request, 'result.html', {'error': f"Error reading CSV data: {str(e)}"})
+
+    # Calculate daily power output
+    power_outputs = turbine.calculate_annual_wind_power_output(wind_speeds)
+
+    # Prepare data for chart
+    chart_data = {
+        'labels': dates,
+        'data': power_outputs,
+    }
+
+    return render(request, 'result.html', {
+        'chart_data': json.dumps(chart_data),
+        'turbine': turbine,
+        'average_output': sum(power_outputs) / len(power_outputs) if power_outputs else 0
+    })
 
