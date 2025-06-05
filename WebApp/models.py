@@ -121,18 +121,9 @@ class Turbine(models.Model):
         return daily_outputs
 
 
-
-# class WindData(models.Model):
-#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-#     source = models.CharField(max_length=20, choices=[('csv', 'CSV'), ('meteostat', 'Meteostat')])
-#     csv_data = models.TextField(blank=True, null=True)
-#     location = models.CharField(max_length=100, blank=True, null=True)
-#     start_date = models.DateField(blank=True, null=True)
-#     end_date = models.DateField(blank=True, null=True)
-#     created_at = models.DateTimeField(auto_now_add=True)
-
 class WindDataCSV(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source = models.CharField(max_length=3)
     csv_data = models.TextField(blank=True, null=True)
 
 

@@ -6,6 +6,8 @@ import requests
 
 def turbine_to_dict(turbine):
     return {
+        "name": turbine.name,
+        "company_name": turbine.company_name,
         "rotor_diameter": turbine.rotor_diameter,
         "efficiency": turbine.efficiency,
         "nominal_power": turbine.nominal_power,

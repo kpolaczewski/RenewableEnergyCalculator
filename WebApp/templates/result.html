@@ -1,44 +1,66 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2 class="text-xl font-bold mb-4">Wind Energy Output</h2>
+<h2 class="text-xl font-bold mb-4">Wind Energy Balance</h2>
 
 {% if error %}
-  <p class="text-red-600">{{ error }}</p>
+    <p class="text-red-600">{{ error }}</p>
 {% else %}
-  <p class="mb-4">Turbine: <strong>{{ turbine.name }}</strong> ({{ turbine.company_name }})</p>
-  <p class="mb-4">Average Daily Output: <strong>{{ average_output|floatformat:2 }} W</strong></p>
+    <p class="mb-4">Turbine: <strong>{{ turbine.name }}</strong> ({{ turbine.company_name }})</p>
+    <p class="mb-4">Average Daily Balance: <strong>{{ average_output|floatformat:2 }} W</strong></p>
+    <p class="mb-4">Sum of produced energy: <strong>{{ produced_energy|floatformat:2 }} W</strong></p>
 
-  <canvas id="powerChart" width="100%" height="40"></canvas>
+
+    <canvas id="powerChart" width="100%" height="40"></canvas>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-    const ctx = document.getElementById('powerChart').getContext('2d');
-    const chartData = {{ chart_data|safe }};
-    const powerChart = new Chart(ctx, {
-        type: 'line',
+    <script>
+      const rawData = {{ chart_data|safe }};
+      const labels = rawData.labels;
+      const data = rawData.data;
+
+      // Generate background colors based on sign of the data
+      const backgroundColors = data.map(value => value >= 0 ? 'rgba(75, 192, 192, 0.6)' : 'rgba(255, 99, 132, 0.6)');
+      const borderColors = data.map(value => value >= 0 ? 'rgb(75, 192, 192)' : 'rgb(255, 99, 132)');
+
+      const ctx = document.getElementById('powerChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
         data: {
-            labels: chartData.labels,
-            datasets: [{
-                label: 'Daily Power Output (W)',
-                data: chartData.data,
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                fill: true,
-                tension: 0.4,
-            }]
+          labels: labels,
+          datasets: [{
+            label: 'Daily Power Balance (W)',
+            data: data,
+            backgroundColor: backgroundColors,
+            borderColor: borderColors,
+            borderWidth: 1
+          }]
         },
         options: {
-            scales: {
-                x: {
-                    title: { display: true, text: 'Date' }
-                },
-                y: {
-                    title: { display: true, text: 'Power Output (W)' }
-                }
+          responsive: true,
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: 'Date'
+              },
+              ticks: {
+                maxRotation: 90,
+                minRotation: 45,
+                autoSkip: true,
+                maxTicksLimit: 20
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Power Balance (W)'
+              },
+              beginAtZero: true
             }
+          }
         }
-    });
-  </script>
+      });
+    </script>
 {% endif %}
 {% endblock %}

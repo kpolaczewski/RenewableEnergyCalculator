@@ -21,6 +21,7 @@ from WebApp.utils import turbine_to_dict
 def home_view(request):
     return render(request, 'home.html')
 
+
 def register_view(request):
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
@@ -51,9 +52,11 @@ def login_view(request):
 
     return render(request, 'login.html', {'form': form})
 
+
 def logout_view(request):
     logout(request)
     return redirect('home')
+
 
 def dashboard_view(request):
     return render(request, 'dashboard.html')
@@ -132,7 +135,6 @@ def wind_data_view(request):
     if request.method == 'POST':
         if 'csv_submit' in request.POST:
             csv_form = WindCSVForm(request.POST, request.FILES)
-            api_form = WindAPIForm()
 
             if csv_form.is_valid():
                 wind_data_entry = WindDataCSV(
@@ -147,7 +149,6 @@ def wind_data_view(request):
 
         elif 'meteostat_submit' in request.POST:
             api_form = WindAPIForm(request.POST)
-            csv_form = WindCSVForm()
 
             if api_form.is_valid():
                 wind_data_entry = WindDataAPI(
@@ -178,9 +179,18 @@ def energy_consumption_view(request):
             csv_form = EnergyCSVForm()
 
             if avg_form.is_valid():
-                consumption = avg_form.cleaned_data['average_consumption']
-                request.session['consumption_type'] = 'average'
-                request.session['average_consumption'] = consumption
+                avg_choice = avg_form.cleaned_data['average_consumption']
+                avg_custom = avg_form.cleaned_data['custom_consumption']
+
+                if avg_choice:
+                    request.session['consumption_type'] = 'average'
+                    request.session['average_consumption'] = avg_choice
+
+
+                else:
+                    request.session['consumption_type'] = 'custom'
+                    request.session['custom_consumption'] = avg_custom
+
                 return redirect('calculate_result_view')  # or next step
 
         elif 'csv_submit' in request.POST:
@@ -208,8 +218,8 @@ def calculate_result_view(request):
     wind_data_id = request.session.get('wind_data_id')
 
     turbine = Turbine(
-        name="custom",
-        company_name="custom",
+        name=turbine_data['name'],
+        company_name=turbine_data['company_name'],
         rotor_diameter=turbine_data['rotor_diameter'],
         efficiency=turbine_data['efficiency'],
         nominal_power=turbine_data['nominal_power'],
@@ -220,15 +230,15 @@ def calculate_result_view(request):
     if not turbine_data or not wind_data_id:
         return render(request, 'result.html', {'error': 'Missing turbine or wind data information.'})
 
-
     wind_speeds = []
     dates = []
 
-
     # If data came from Meteostat
     try:
-        wind_data_api = WindDataAPI.objects.get(id=wind_data_id)
+        wind_data_id_uuid = uuid.UUID(wind_data_id)
+        wind_data_api = WindDataAPI.objects.get(id=wind_data_id_uuid)
         location = Point(wind_data_api.latitude, wind_data_api.longitude)
+
         if isinstance(wind_data_api.start_date, date):
             wind_data_api.start_date = datetime.combine(wind_data_api.start_date, time.min)
 
@@ -247,7 +257,8 @@ def calculate_result_view(request):
     # If data came from CSV
     except WindDataAPI.DoesNotExist:
         try:
-            wind_data_csv = WindDataCSV.objects.get(id=wind_data_id)
+            wind_data_id_uuid = uuid.UUID(wind_data_id)
+            wind_data_csv = WindDataCSV.objects.get(id=wind_data_id_uuid)
             csv_lines = wind_data_csv.csv_data.strip().splitlines()
 
             for line in csv_lines[1:]:  # Skip header
@@ -257,8 +268,52 @@ def calculate_result_view(request):
         except Exception as e:
             return render(request, 'result.html', {'error': f"Error reading CSV data: {str(e)}"})
 
-    # Calculate daily power output
     power_outputs = turbine.calculate_annual_wind_power_output(wind_speeds)
+
+    average_consumption_num = 0
+    produced_energy = 0
+    consumption_type = request.session['consumption_type']
+    avg_output = 0
+
+    if consumption_type == "custom":
+        average_consumption_num = request.session['custom_consumption']
+        for i in range(len(power_outputs)):
+            power_outputs[i] = power_outputs[i] - average_consumption_num
+            if power_outputs[i] > 0:
+                produced_energy += power_outputs[i]
+        avg_output = sum(power_outputs) / len(power_outputs) if power_outputs else 0
+
+    elif consumption_type == "average":
+        average_consumption = request.session['average_consumption']
+        match average_consumption:
+            case "low":
+                average_consumption_num = 2000
+            case "medium":
+                average_consumption_num = 4000
+            case "high":
+                 average_consumption_num = 6000
+        for i in range(len(power_outputs)):
+            power_outputs[i] = power_outputs[i] - average_consumption_num
+            if power_outputs[i] > 0:
+                produced_energy += power_outputs[i]
+        avg_output = sum(power_outputs) / len(power_outputs) if power_outputs else 0
+
+
+
+    if consumption_type == "csv":
+        csv_consumption = request.session['csv_consumption']
+        lines = csv_consumption.strip().splitlines()
+        consumption_day = []
+
+        for line in lines[1:]:
+            date_str, consumption = line.strip().split(',')
+            consumption_day.append(float(consumption))
+        print(consumption_day)
+        for i in range(len(power_outputs)):
+            power_outputs[i] = power_outputs[i] - consumption_day[i]
+            if power_outputs[i] > 0:
+                produced_energy += power_outputs[i]
+        avg_output = sum(power_outputs) / len(power_outputs) if power_outputs else 0
 
     # Prepare data for chart
     chart_data = {
@@ -269,6 +324,6 @@ def calculate_result_view(request):
     return render(request, 'result.html', {
         'chart_data': json.dumps(chart_data),
         'turbine': turbine,
-        'average_output': sum(power_outputs) / len(power_outputs) if power_outputs else 0
+        'average_output': avg_output,
+        'produced_energy': produced_energy
     })
-

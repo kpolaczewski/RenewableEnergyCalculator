@@ -128,8 +128,27 @@ class EnergyAverageForm(forms.Form):
             ('high', 'High (6000 kWh/year)'),
         ],
         label="Select Average Consumption",
-        widget=forms.RadioSelect
+        widget=forms.RadioSelect,
+        required=False
     )
+    custom_consumption = forms.FloatField(
+        label="Or enter your custom consumption (kWh/year)",
+        required=False,
+        min_value=0
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        average_data = cleaned_data.get('average_consumption')
+        custom_data = cleaned_data.get('custom_consumption')
+
+        if not average_data and not custom_data:
+            raise forms.ValidationError("Please fill one of the options available")
+
+        if average_data and custom_data:
+            raise forms.ValidationError("Please fill only one option")
+
+
 
 class EnergyCSVForm(forms.Form):
     csv_file = forms.FileField(label="Upload CSV File")
