@@ -1,5 +1,46 @@
 {% extends 'base.html' %}
 
+<style>
+.turbine-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.turbine-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.turbine-name {
+  flex-grow: 1;
+}
+
+.delete-form {
+  margin: 0;
+}
+
+.delete-btn {
+  background-color: transparent;
+  border: none;
+  color: #c00;
+  font-size: 0.9em;
+  padding: 2px 6px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.delete-btn:hover {
+  background-color: rgba(255, 0, 0, 0.1);
+}
+</style>
+
+
 {% block content %}
 <div class="turbine-selection-container">
   <h1>Select or Create a Turbine</h1>
@@ -11,7 +52,21 @@
       {{ select_form.as_p }}
       <button type="submit" name="select_submit" class="btn-primary">Select and Continue</button>
     </form>
+
+      <ul class="turbine-list">
+          {% for turbine in select_form.fields.turbine.queryset %}
+            <li class="turbine-item">
+              <span class="turbine-name">{{ turbine.name }}</span>
+              <form method="post" action="{% url 'delete_turbine' %}" class="delete-form">
+                {% csrf_token %}
+                <input type="hidden" name="turbine_id" value="{{ turbine.id }}">
+                <button type="submit" class="delete-btn" title="Delete" onclick="return confirm('Delete this turbine?')">✕</button>
+              </form>
+            </li>
+          {% endfor %}
+      </ul>
   </div>
+
 
   <hr>
 

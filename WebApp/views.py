@@ -129,7 +129,11 @@ def turbine_selection_view(request):
         'select_form': select_form,
         'turbine_form': turbine_form,
     })
-
+def delete_turbine_view(request):
+    turbine_id = request.POST.get('turbine_id')
+    turbine = get_object_or_404(Turbine, id=turbine_id, user=request.user)
+    turbine.delete()
+    redirect("turbine_selection_view")
 
 def wind_data_view(request):
     if request.method == 'POST':
@@ -142,9 +146,19 @@ def wind_data_view(request):
                     source='csv'
                 )
                 csv_file = request.FILES['csv_file']
-                wind_data_entry.csv_data = csv_file.read().decode('utf-8')
+                decoded_data = csv_file.read().decode('utf-8')
+
+                wind_data_entry.csv_data = decoded_data
                 wind_data_entry.save()
+
+                dates = []
+                csv_lines = decoded_data.strip().splitlines()
+                for line in csv_lines[1:]:  # Skip header
+                    date_str, speed = line.strip().split(',')
+                    dates.append(date_str)
+
                 request.session['wind_data_id'] = str(wind_data_entry.id)
+                request.session['wind_dates'] = dates
                 return redirect('energy_consumption_view')
 
         elif 'meteostat_submit' in request.POST:
@@ -198,10 +212,39 @@ def energy_consumption_view(request):
             avg_form = EnergyAverageForm()
 
             if csv_form.is_valid():
-                csv_data = csv_form.cleaned_data['csv_file'].read().decode('utf-8')
-                request.session['consumption_type'] = 'csv'
-                request.session['csv_consumption'] = csv_data
-                return redirect('calculate_result_view')  # or next step
+                try:
+                    wind_dates = request.session.get('wind_dates')
+                    if wind_dates is None:
+                        raise ValueError("No wind data dates found in session.")
+
+                    csv_data = csv_form.cleaned_data['csv_file'].read().decode('utf-8')
+                    dates = []
+                    csv_lines = csv_data.strip().splitlines()
+
+                    for line in csv_lines[1:]:  # Skip header
+                        date_str, _ = line.strip().split(',')
+                        dates.append(date_str)
+
+                    # Validate number of days
+                    if len(dates) != len(wind_dates):
+                        raise ValueError("Number of days in consumption CSV does not match wind data.")
+
+                    # Validate date match
+                    if sorted(dates) != sorted(wind_dates):
+                        raise ValueError("Dates in consumption CSV do not match wind data dates.")
+
+                    # Success
+                    request.session['consumption_type'] = 'csv'
+                    request.session['csv_consumption'] = csv_data
+                    return redirect('calculate_result_view')
+
+                except ValueError as e:
+                    # Render form with error message
+                    return render(request, 'energy_consumption.html', {
+                        'csv_form': csv_form,
+                        'avg_form': avg_form,
+                        'error': str(e),
+                    })
 
     else:
         avg_form = EnergyAverageForm()
@@ -216,6 +259,7 @@ def energy_consumption_view(request):
 def calculate_result_view(request):
     turbine_data = request.session.get('turbine_data')
     wind_data_id = request.session.get('wind_data_id')
+
 
     turbine = Turbine(
         name=turbine_data['name'],
