@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timedelta, time, date
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
@@ -52,7 +53,7 @@ def login_view(request):
 
     return render(request, 'login.html', {'form': form})
 
-
+@login_required
 def logout_view(request):
     logout(request)
     return redirect('home')
@@ -61,7 +62,7 @@ def logout_view(request):
 def dashboard_view(request):
     return render(request, 'dashboard.html')
 
-
+@login_required
 def get_wind_avg_from_meteostat(lat, lon, start_date, end_date):
     if end_date - start_date > timedelta(days=365):
         raise ValueError("The date range must not exceed 1 year.")
@@ -94,7 +95,7 @@ def process_csv(file):
         })
     return data
 
-
+@login_required
 def turbine_selection_view(request):
     if request.method == 'POST':
         select_form = SelectTurbineForm(request.POST, user=request.user)
@@ -135,6 +136,7 @@ def delete_turbine_view(request):
     turbine.delete()
     redirect("turbine_selection_view")
 
+@login_required
 def wind_data_view(request):
     if request.method == 'POST':
         if 'csv_submit' in request.POST:
@@ -185,7 +187,7 @@ def wind_data_view(request):
         'api_form': api_form,
     })
 
-
+@login_required
 def energy_consumption_view(request):
     if request.method == 'POST':
         if 'average_submit' in request.POST:
@@ -255,7 +257,7 @@ def energy_consumption_view(request):
         'csv_form': csv_form,
     })
 
-
+@login_required
 def calculate_result_view(request):
     turbine_data = request.session.get('turbine_data')
     wind_data_id = request.session.get('wind_data_id')
